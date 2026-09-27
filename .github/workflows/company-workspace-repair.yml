@@ -1,0 +1,184 @@
+name: Apply reviewed workspace repair
+on:
+  push:
+    branches: [work/evidence-first-company]
+    paths: ['.github/workflows/company-workspace-repair.yml']
+permissions:
+  contents: read
+jobs:
+  repair:
+    if: github.repository == 'MarcoG57/paperclip' && github.ref == 'refs/heads/work/evidence-first-company'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Apply reviewed compatibility repair (no relaxation of native safe import)
+        shell: python
+        run: |
+          from pathlib import Path
+          import re, subprocess
+          subprocess.run(['git','merge-base','--is-ancestor','61028f7645bb91938346210aaf430d92acdb6cfd','HEAD'],check=True)
+          p=Path('scripts/company/model.mjs')
+          s=p.read_text()
+          assert 'export function workspacePolicyFor' not in s
+          s+='''
+          /** Host execution settings require operator approval outside safe catalog import. */
+          export function workspacePolicyFor(project) {
+            return {enabled:true,sharedWorkspaceConcurrency:'serialize',defaultMode:project.coding?'isolated_workspace':'shared_workspace',allowIssueOverride:false,...(project.coding?{workspaceStrategy:{type:'git_worktree'}}:{})};
+          }
+          '''
+          p.write_text(s)
+          p=Path('scripts/company/generate.mjs');s=p.read_text()
+          s,n=re.subn(r'      executionWorkspacePolicy: \{.*?\n      \},\n','',s,flags=re.S)
+          assert n==1,n
+          p.write_text(s)
+          p=Path('scripts/company/install.mjs');s=p.read_text()
+          assert '  permissionsFor,\n' in s
+          s=s.replace('  permissionsFor,\n','  permissionsFor,\n  workspacePolicyFor,\n',1)
+          assert '    expectedRoles:' in s
+          s=s.replace('    expectedRoles:', '    projectPolicies: preset.projects.map(project => ({slug:project.slug,name:project.name,executionWorkspacePolicy:workspacePolicyFor(project)})),\n    expectedRoles:',1)
+          marker='  const report = await inspect(plan, request, { root });'
+          position=s.rfind(marker)
+          assert position>0
+          s=s[:position]+'''
+            // Keep agent_safe unchanged. These destinations and policies are
+            // separately approved through planHash, after the safe catalog import.
+            const importedProjects=list(await request('GET',`${basePath(plan)}/projects`),'PROJECTS');
+            invariant(importedProjects.length===plan.projectPolicies.length,'PROJECT_POLICY_TARGET_COUNT');
+            const targets=plan.projectPolicies.map(policy=>{
+              const matches=importedProjects.filter(project=>project.name===policy.name);
+              invariant(matches.length===1,'PROJECT_POLICY_TARGET_AMBIGUOUS');
+              const target=matches[0];
+              invariant(target.companyId===plan.bindings.companyId&&typeof target.id==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(target.id),'PROJECT_POLICY_TARGET_INVALID');
+              invariant(target.status==='backlog','PROJECT_POLICY_TARGET_NOT_BACKLOG');
+              return {id:target.id,executionWorkspacePolicy:policy.executionWorkspacePolicy};
+            });
+            for(const target of targets){
+              const current=await request('GET',basePath(plan));
+              invariant(current.id===plan.bindings.companyId&&current.status==='paused','COMPANY_ACTIVATED_DURING_INSTALL');
+              await request('PATCH',`/api/projects/${target.id}`,{executionWorkspacePolicy:target.executionWorkspacePolicy});
+            }
+          '''+s[position:]
+          p.write_text(s)
+          p=Path('tests/company/company.test.mjs');s=p.read_text()
+          marker='  const issues = preset.tasks.map'
+          assert marker in s
+          s=s.replace(marker,'  if (!installed) for (const project of projects) project.executionWorkspacePolicy = null;\n'+marker,1)
+          marker='    const role = preset.roles.find'
+          assert marker in s
+          s=s.replace(marker,'''    if(pathname.startsWith('/api/projects/')&&method==='PATCH'){
+                const project=projects.find(p=>pathname===`/api/projects/${p.id}`);
+                assert.ok(project);assert.equal(company.status,'paused');
+                Object.assign(project,structuredClone(body));return structuredClone(project);
+              }
+          '''+marker,1)
+          s,n=re.subn(r'(assert\.equal\(mutations\.length, )4(\);)',r'\g<1>9\2',s)
+          assert n==1,n
+          s,n=re.subn(r'(calls\.filter\(\(c\) => c\.method !== "GET"\)\.length,\s*)4',r'\g<1>9',s)
+          assert n==1,n
+          s+='''
+          test('safe catalog excludes execution policies and approval plan binds them separately',()=>{
+            assert.equal(compileTeam(sources)['.paperclip.yaml'].includes('executionWorkspacePolicy'),false);
+            assert.equal(plan.projectPolicies.length,5);
+            assert.equal(plan.projectPolicies.filter(p=>p.executionWorkspacePolicy.defaultMode==='isolated_workspace').length,2);
+          });
+          test('operator refuses foreign project destinations before policy writes',async()=>{
+            const fixture=nativeFixture();let imported=false;
+            const request=async(method,url,body)=>{
+              const response=await fixture.request(method,url,body);
+              if(url.includes('/install?'))imported=true;
+              if(imported&&url.endsWith('/projects'))return response.map(p=>({...p,companyId:'other-company'}));
+              return response;
+            };
+            await assert.rejects(apply(plan,plan.planHash,request),/PROJECT_POLICY_TARGET_INVALID/);
+            assert.equal(fixture.calls.some(c=>c.method==='PATCH'&&c.url.startsWith('/api/projects/')),false);
+          });
+          test('operator checks paused company before each workspace policy',async()=>{
+            const fixture=nativeFixture();let imported=false;
+            const request=async(method,url,body)=>{
+              const response=await fixture.request(method,url,body);
+              if(url.includes('/install?'))imported=true;
+              if(imported&&method==='GET'&&url===`/api/companies/${bindings.companyId}`)return {...response,status:'active'};
+              return response;
+            };
+            await assert.rejects(apply(plan,plan.planHash,request),/COMPANY_ACTIVATED_DURING_INSTALL/);
+            assert.equal(fixture.calls.some(c=>c.method==='PATCH'&&c.url.startsWith('/api/projects/')),false);
+          });
+          test('operator does not retry a failed policy write or report configured',async()=>{
+            const fixture=nativeFixture();let writes=0;
+            const request=async(method,url,body)=>{
+              if(method==='PATCH'&&url.startsWith('/api/projects/')){writes++;throw new Error('WRITE_OUTCOME_UNKNOWN');}
+              return fixture.request(method,url,body);
+            };
+            await assert.rejects(apply(plan,plan.planHash,request),/WRITE_OUTCOME_UNKNOWN/);
+            assert.equal(writes,1);
+          });
+          '''
+          p.write_text(s)
+          p=Path('packages/teams-catalog/src/evidence-first.test.ts');s=p.read_text()
+          marker='    expect(data.agents["engineer-a"]'
+          assert marker in s
+          s=s.replace(marker,'    for (const project of Object.values(data.projects) as any[]) expect(project.executionWorkspacePolicy).toBeUndefined();\n'+marker,1)
+          p.write_text(s)
+          p=Path('server/src/__tests__/teams-catalog-install-no-overrides.test.ts');s=p.read_text()
+          marker='    expect(importedProjects.every((project) => project.status === "backlog")).toBe(true);'
+          assert marker in s
+          s=s.replace(marker,marker+'\n    // Host execution policies are applied separately by the operator, not safe import.\n    expect(importedProjects.every((project) => project.executionWorkspacePolicy === null)).toBe(true);',1)
+          p.write_text(s)
+          for name in ['OPERATIONS.md','ARCHITECTURE.md']:
+            p=Path('company')/name
+            p.write_text(p.read_text()+'''
+          ## Frontera del importador seguro
+
+          El catálogo nativo usa `agent_safe`: no acepta `executionWorkspacePolicy` en los
+          assets. El preset no intenta saltarse esa restricción. El plan de operador
+          incluye cinco políticas de workspace, las aplica con `PATCH /api/projects/:id`
+          después de importar y verifica de nuevo que la empresa esté pausada antes de
+          cada operación. Los UUID y la pertenencia a la company se validan antes del
+          primer PATCH. `doctor` exige el resultado final; la importación nativa por sí
+          sola no configura aislamiento. Un fallo parcial no activa ni reintenta trabajo:
+          requiere inspección y reparación humana con la empresa todavía pausada.
+          ''')
+      - name: Regenerate native catalog and verify contracts
+        run: |
+          node scripts/company/generate.mjs
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import os from 'node:os';
+          import path from 'node:path';
+          import {stripTypeScriptTypes} from 'node:module';
+          import {pathToFileURL} from 'node:url';
+          const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'catalog-repair-'));
+          try {
+            for(const name of ['frontmatter','catalog-builder']){
+              const source=await fs.readFile(`packages/teams-catalog/src/${name}.ts`,'utf8');
+              await fs.writeFile(`${tmp}/${name}.mjs`,stripTypeScriptTypes(source).replaceAll('./frontmatter.js','./frontmatter.mjs'));
+            }
+            const {writeCatalogManifest}=await import(pathToFileURL(`${tmp}/catalog-builder.mjs`));
+            const result=await writeCatalogManifest(path.resolve('packages/teams-catalog'));
+            if(result.errors.length)throw new Error(result.errors.join('\n'));
+          } finally {await fs.rm(tmp,{recursive:true,force:true});}
+          JS
+          npx --yes prettier@3.6.2 --write scripts/company/model.mjs scripts/company/generate.mjs scripts/company/install.mjs tests/company/company.test.mjs
+          node --test tests/company/*.test.mjs
+          git diff --check
+      - name: Publish only the reviewed work branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add scripts/company/model.mjs scripts/company/generate.mjs scripts/company/install.mjs tests/company/company.test.mjs packages/teams-catalog/src/evidence-first.test.ts server/src/__tests__/teams-catalog-install-no-overrides.test.ts company/OPERATIONS.md company/ARCHITECTURE.md packages/teams-catalog/catalog/optional/company-defaults/evidence-first-company/.paperclip.yaml packages/teams-catalog/generated/catalog.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: apply workspace policies separately from native safe import' -m 'Keep agent_safe restrictions intact. Bind five project policies to reviewed plan; verify every destination and paused state before writes. Preserve readback isolation checks and add negative tests. Do not retry writes or activate automation.'
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/work/evidence-first-company
