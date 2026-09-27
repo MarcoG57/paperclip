@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildCodexExecArgs } from "./codex-args.js";
 
+const DEFAULT_SANDBOX_ARGS = [
+  "-c", 'sandbox_mode="workspace-write"',
+  "-c", "sandbox_workspace_write.network_access=true",
+];
+
 describe("buildCodexExecArgs", () => {
-  it.each([null, "existing-session"])("defaults direct and resumed launches to full bypass (%s)", (resumeSessionId) => {
+  it.each([null, "existing-session"])("keeps direct and resumed launches sandboxed by default (%s)", (resumeSessionId) => {
     const { args } = buildCodexExecArgs({}, { resumeSessionId });
-    expect(args).toContain("--dangerously-bypass-approvals-and-sandbox");
-    expect(args).not.toContain('sandbox_mode="workspace-write"');
+    expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(args).toContain('sandbox_mode="workspace-write"');
     if (resumeSessionId) expect(args.slice(-3)).toEqual(["resume", resumeSessionId, "-"]);
   });
 
@@ -22,7 +27,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       model,
       "-c",
@@ -62,7 +67,7 @@ describe("buildCodexExecArgs", () => {
       "--search",
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "gpt-5.4",
       "-c",
@@ -85,7 +90,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "gpt-5.5",
       "-c",
@@ -108,7 +113,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "future-codex-model",
       "-c",
@@ -130,7 +135,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "-c",
       'service_tier="fast"',
       "-c",
@@ -153,7 +158,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "gpt-5",
       "-",
@@ -171,7 +176,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "gpt-5.4-mini",
       "-",
@@ -189,8 +194,8 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
+      ...DEFAULT_SANDBOX_ARGS,
       "--skip-git-repo-check",
-      "--dangerously-bypass-approvals-and-sandbox",
       "--model",
       "gpt-5.5",
       "-",
@@ -210,7 +215,7 @@ describe("buildCodexExecArgs", () => {
     expect(result.args).toEqual([
       "exec",
       "--json",
-      "--dangerously-bypass-approvals-and-sandbox",
+      ...DEFAULT_SANDBOX_ARGS,
       "--model",
       "gpt-5.5",
       "--skip-git-repo-check",

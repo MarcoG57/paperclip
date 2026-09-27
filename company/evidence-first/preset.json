@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "slug": "evidence-first-company",
+  "name": "Evidence-first AI company",
+  "description": "Empresa AI-based con responsabilidades separadas, trabajo orientado a evidencia y control humano de efectos externos.",
+  "language": "es",
+  "budgetMonthlyCents": 10000,
+  "budgetWarningPercent": 70,
+  "maxManagedRuns": 4,
+  "roles": [
+    {
+      "slug": "director",
+      "name": "Dirección",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "manager": null,
+      "reviewer": "architecture-review",
+      "budgetWeight": 12
+    },
+    {
+      "slug": "product",
+      "name": "Producto",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "manager": "director",
+      "reviewer": "architecture-review",
+      "budgetWeight": 12
+    },
+    {
+      "slug": "research",
+      "name": "Research",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "manager": "director",
+      "reviewer": "product",
+      "budgetWeight": 6
+    },
+    {
+      "slug": "design",
+      "name": "Diseño",
+      "model": "gpt-6-sol",
+      "effort": "high",
+      "manager": "director",
+      "reviewer": "product",
+      "budgetWeight": 5
+    },
+    {
+      "slug": "architecture-review",
+      "name": "Arquitectura y revisión",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "manager": "director",
+      "reviewer": "human",
+      "budgetWeight": 15
+    },
+    {
+      "slug": "engineer-a",
+      "name": "Ingeniería backend y datos",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "manager": "architecture-review",
+      "reviewer": "qa",
+      "budgetWeight": 15
+    },
+    {
+      "slug": "engineer-b",
+      "name": "Ingeniería frontend",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "manager": "architecture-review",
+      "reviewer": "qa",
+      "budgetWeight": 15
+    },
+    {
+      "slug": "qa",
+      "name": "QA",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "manager": "architecture-review",
+      "reviewer": "architecture-review",
+      "budgetWeight": 7
+    },
+    {
+      "slug": "growth",
+      "name": "Growth",
+      "model": "gpt-6-sol",
+      "effort": "high",
+      "manager": "director",
+      "reviewer": "human",
+      "budgetWeight": 5
+    },
+    {
+      "slug": "customer-ops",
+      "name": "Customer operations",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "manager": "director",
+      "reviewer": "human",
+      "budgetWeight": 2
+    },
+    {
+      "slug": "finance-ops",
+      "name": "Finanzas y operaciones",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "manager": "director",
+      "reviewer": "human",
+      "budgetWeight": 2
+    },
+    {
+      "slug": "platform-security",
+      "name": "Plataforma y seguridad",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "manager": "architecture-review",
+      "reviewer": "architecture-review",
+      "budgetWeight": 4
+    }
+  ],
+  "projects": [
+    {
+      "slug": "company-platform",
+      "name": "Plataforma de la empresa",
+      "lead": "platform-security",
+      "coding": true,
+      "description": "Instalación, aislamiento, restauración, observabilidad y mantenimiento verificable."
+    },
+    {
+      "slug": "venture-discovery",
+      "name": "Discovery de oportunidades",
+      "lead": "product",
+      "coding": false,
+      "description": "Problemas reales, alternativas existentes y experimentos que puedan invalidar una oportunidad."
+    },
+    {
+      "slug": "product-delivery",
+      "name": "Entrega de producto",
+      "lead": "architecture-review",
+      "coding": true,
+      "description": "Un producto en construcción, tareas acotadas y cambios probados antes de revisar."
+    },
+    {
+      "slug": "go-to-market",
+      "name": "Mercado y clientes",
+      "lead": "growth",
+      "coding": false,
+      "description": "Propuestas, demostraciones y borradores: la interacción externa requiere autorización humana."
+    },
+    {
+      "slug": "operations",
+      "name": "Operaciones de la empresa",
+      "lead": "finance-ops",
+      "coding": false,
+      "description": "Costes calculados de forma determinista, feedback y decisiones operativas."
+    }
+  ],
+  "tasks": [
+    {
+      "slug": "qualify-runtime",
+      "project": "company-platform",
+      "title": "Verificar el runtime antes de activar agentes",
+      "blockedBy": [],
+      "description": "Comprobar login y modelo efectivo, sandbox real, límite global de procesos, cancelación, red, presupuesto, restauración y ausencia de self-wake loops. Registrar cada prueba como PASS/FAIL/BLOCKED/NOT_RUN con artefactos y límites. No activar ejecución recurrente."
+    },
+    {
+      "slug": "smoke-delivery",
+      "project": "product-delivery",
+      "title": "Completar un smoke de desarrollo con revisión",
+      "blockedBy": [
+        "qualify-runtime"
+      ],
+      "description": "Preparar una utilidad pequeña en un repositorio de prueba autorizado. Una tarea, un worktree, tests deterministas y revisión independiente sobre el SHA exacto. No hacer merge ni deploy para demostrar el flujo. Separar evidencia sintética de resultados live."
+    },
+    {
+      "slug": "opportunity-briefs",
+      "project": "venture-discovery",
+      "title": "Contrastar tres oportunidades diferentes",
+      "blockedBy": [
+        "qualify-runtime"
+      ],
+      "description": "Tres problemas de usuarios distintos con fuentes fechadas, alternativas sin IA, evidencia que contradiga la propuesta y el experimento más barato para descartarla. No fabricar entrevistas, ventas o interés. El humano elige qué validar."
+    },
+    {
+      "slug": "define-experiment",
+      "project": "venture-discovery",
+      "title": "Definir un experimento y sus criterios de abandono",
+      "blockedBy": [
+        "opportunity-briefs"
+      ],
+      "description": "Describir hipótesis, población, observable, limitaciones, coste autorizado y criterio de continuar o abandonar. Sin scores arbitrarios ni tamaño de mercado inventado. Contactos externos preparados como borradores."
+    },
+    {
+      "slug": "first-prd",
+      "project": "product-delivery",
+      "title": "Preparar el primer PRD verificable",
+      "blockedBy": [
+        "define-experiment",
+        "smoke-delivery"
+      ],
+      "description": "Usar la oportunidad seleccionada por un humano. Especificar alcance mínimo, alternativa simple, contratos, riesgos, estados de UI y acceptance criteria. No elegir un sector por la profesión de los fundadores."
+    },
+    {
+      "slug": "first-demo",
+      "project": "go-to-market",
+      "title": "Preparar la demostración del producto",
+      "blockedBy": [
+        "first-prd"
+      ],
+      "description": "Borrador de demo y mensajes que describan solo capacidades demostradas. Marcar mockups, fixtures y datos sintéticos. No publicar, contactar clientes ni inventar testimonios."
+    },
+    {
+      "slug": "cost-baseline",
+      "project": "operations",
+      "title": "Crear el baseline de coste por trabajo aceptado",
+      "blockedBy": [
+        "smoke-delivery"
+      ],
+      "description": "Agregar facturación y uso con código determinista. Separar suscripción, API, monedas, estimaciones y cargos reales. Registrar retries, retrabajo y tiempo humano. UNKNOWN no equivale a cero."
+    }
+  ]
+}

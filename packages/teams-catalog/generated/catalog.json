@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packageName": "@paperclipai/teams-catalog",
   "packageVersion": "0.1.0",
-  "generatedAt": "2026-06-04T18:03:41.262Z",
+  "generatedAt": "2026-09-27T19:54:43.330Z",
   "teams": [
     {
       "id": "paperclipai:bundled:company-defaults:core-exec-team",
@@ -374,6 +374,227 @@
       "trustLevel": "assets",
       "compatibility": "compatible",
       "contentHash": "sha256:74ddeaeb11805835a4a67fc4530b048ab7f8aa1dc7d2b80acea139a933d158d3"
+    },
+    {
+      "id": "paperclipai:optional:company-defaults:evidence-first-company",
+      "key": "paperclipai/optional/company-defaults/evidence-first-company",
+      "kind": "optional",
+      "category": "company-defaults",
+      "slug": "evidence-first-company",
+      "name": "Evidence-first AI company",
+      "description": "Empresa AI-based con responsabilidades separadas, trabajo orientado a evidencia y control humano de efectos externos.",
+      "path": "catalog/optional/company-defaults/evidence-first-company",
+      "entrypoint": "TEAM.md",
+      "schema": "agentcompanies/v1",
+      "defaultInstall": false,
+      "recommendedForCompanyTypes": [
+        "startup",
+        "product",
+        "research"
+      ],
+      "tags": [
+        "evidence-first",
+        "spanish",
+        "human-approval",
+        "bounded-cost"
+      ],
+      "counts": {
+        "agents": 12,
+        "projects": 5,
+        "tasks": 7,
+        "routines": 0,
+        "localSkills": 0,
+        "catalogSkills": 0,
+        "externalSkillSources": 0
+      },
+      "rootAgentSlugs": [
+        "director"
+      ],
+      "agentSlugs": [
+        "architecture-review",
+        "customer-ops",
+        "design",
+        "director",
+        "engineer-a",
+        "engineer-b",
+        "finance-ops",
+        "growth",
+        "platform-security",
+        "product",
+        "qa",
+        "research"
+      ],
+      "projectSlugs": [
+        "company-platform",
+        "go-to-market",
+        "operations",
+        "product-delivery",
+        "venture-discovery"
+      ],
+      "requiredSkills": [],
+      "envInputs": [],
+      "sourceRefs": [],
+      "files": [
+        {
+          "path": "TEAM.md",
+          "kind": "team",
+          "sizeBytes": 2191,
+          "sha256": "275bb594637da7bb7e708ef01c933befc6ad8de31e9060c9cb98c535baa9f4c6"
+        },
+        {
+          "path": ".paperclip.yaml",
+          "kind": "extension",
+          "sizeBytes": 10407,
+          "sha256": "28b9a08d75fab44159b235e9b702429f418255867e2c01ba90afefd4e9a6f8e8"
+        },
+        {
+          "path": "agents/architecture-review/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5553,
+          "sha256": "abed7478e38200d7f5e4634ffbc79581ef81ca38fcf2bd244822e7d37f887d3f"
+        },
+        {
+          "path": "agents/customer-ops/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5416,
+          "sha256": "a80f4695a7186ae7cf028ae25fa2442dee0336dbc7a25490bfe373023b8a797c"
+        },
+        {
+          "path": "agents/design/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5388,
+          "sha256": "37d66bbe0299def71fe86b113dee5a5da8532edc186e25b3d88bee4f49f441dc"
+        },
+        {
+          "path": "agents/director/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5570,
+          "sha256": "f5269471a946383e40fc04ab90d48607a254fdd3818327d3fe643107e5d5c233"
+        },
+        {
+          "path": "agents/engineer-a/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5435,
+          "sha256": "e74fdc51adf422b3bccc0dada13f4ed690f2665e0f54ef8ba50daa6d5716558d"
+        },
+        {
+          "path": "agents/engineer-b/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5484,
+          "sha256": "39c2657bc20962deab4860bd36ada22afa0f0565263465e992a5e18c69ae42c1"
+        },
+        {
+          "path": "agents/finance-ops/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5543,
+          "sha256": "5ee95b431d0f2a3d6533b7b4dbc495f680b7a7ee3010bf92de84424ff295144f"
+        },
+        {
+          "path": "agents/growth/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5503,
+          "sha256": "bbbf5289da6bb10ae57b51d6bc0e9ac48dceb41a100ede2135149f1729e76d1d"
+        },
+        {
+          "path": "agents/platform-security/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5493,
+          "sha256": "9e0129b4ee68853975e2d9d11dfb3aaffeece53260296ac98a1cb859d665ce80"
+        },
+        {
+          "path": "agents/product/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5502,
+          "sha256": "831ffde7a50af0994efd0cf06ae1339167ed19940d0ae838f7ab6de7269c918e"
+        },
+        {
+          "path": "agents/qa/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5387,
+          "sha256": "2b3f539173d9065f3b48afa0e736650e609b29e8598652e0c21b72971a93a8b9"
+        },
+        {
+          "path": "agents/research/AGENTS.md",
+          "kind": "agent",
+          "sizeBytes": 5519,
+          "sha256": "ef41248809cb2167fc78e4149411c3cd4afcc34f3aaff6f91520be4ef7deda69"
+        },
+        {
+          "path": "projects/company-platform/PROJECT.md",
+          "kind": "project",
+          "sizeBytes": 394,
+          "sha256": "749c3aae2f05b57bbf0cd9edaed5b06130df36891e1dd4261eed668473473070"
+        },
+        {
+          "path": "projects/company-platform/tasks/qualify-runtime/TASK.md",
+          "kind": "task",
+          "sizeBytes": 714,
+          "sha256": "d91997f2040c2ab404f4cf448ca402573ef2c22e2dc23baf8b56c533ad674a61"
+        },
+        {
+          "path": "projects/go-to-market/PROJECT.md",
+          "kind": "project",
+          "sizeBytes": 393,
+          "sha256": "90922c810873e48493bf57f6183464689c4a0741a84f43b86304eb7b9ddc79db"
+        },
+        {
+          "path": "projects/go-to-market/tasks/first-demo/TASK.md",
+          "kind": "task",
+          "sizeBytes": 605,
+          "sha256": "4d127a06447e801689467602db34d20d581830f3942bbacf3e526c1801d51064"
+        },
+        {
+          "path": "projects/operations/PROJECT.md",
+          "kind": "project",
+          "sizeBytes": 361,
+          "sha256": "3917e69271b5124060435d86fdd60bdaf3709ec123e75a3c2291ecd07e9f7983"
+        },
+        {
+          "path": "projects/operations/tasks/cost-baseline/TASK.md",
+          "kind": "task",
+          "sizeBytes": 633,
+          "sha256": "bedfaa250a737e8757194925bed32306ef57aff160381afc6b8cd3e5ba622fae"
+        },
+        {
+          "path": "projects/product-delivery/PROJECT.md",
+          "kind": "project",
+          "sizeBytes": 385,
+          "sha256": "74cd3cb1b3559da161c9af6a5da06600cccccd346338cc9461cb8f29433b3548"
+        },
+        {
+          "path": "projects/product-delivery/tasks/first-prd/TASK.md",
+          "kind": "task",
+          "sizeBytes": 640,
+          "sha256": "f920198ecbad81f7a9c8a12bd4d6061573be4705c4d75832436e45cd79dd0427"
+        },
+        {
+          "path": "projects/product-delivery/tasks/smoke-delivery/TASK.md",
+          "kind": "task",
+          "sizeBytes": 707,
+          "sha256": "c3322539529e20d5ca0b241c6244b6c171f870ad4c01c5f83d202b96c4dc73bc"
+        },
+        {
+          "path": "projects/venture-discovery/PROJECT.md",
+          "kind": "project",
+          "sizeBytes": 405,
+          "sha256": "024c3b0f9fb28f5a940384e0109bab41adfa70587799fd6b15367176b0446ff0"
+        },
+        {
+          "path": "projects/venture-discovery/tasks/define-experiment/TASK.md",
+          "kind": "task",
+          "sizeBytes": 671,
+          "sha256": "15cd0b31424132458d5f3293667cf672288a7315c71c7234f2dc81bbdd80c1d2"
+        },
+        {
+          "path": "projects/venture-discovery/tasks/opportunity-briefs/TASK.md",
+          "kind": "task",
+          "sizeBytes": 684,
+          "sha256": "42a9f8507311d8646cc2afbe47cd1af52937757783fb927fc5088c55f596f971"
+        }
+      ],
+      "trustLevel": "assets",
+      "compatibility": "compatible",
+      "contentHash": "sha256:5a2708cac28e6795a2b3c4d3dc663d92bc56d3a3a353b6abe5a7631f448350da"
     },
     {
       "id": "paperclipai:optional:content:content-machine",

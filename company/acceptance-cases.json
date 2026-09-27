@@ -1,0 +1,126 @@
+[
+  {
+    "id": "H01",
+    "scope": "HOST_RUNTIME",
+    "description": "Actual host adapter execution"
+  },
+  {
+    "id": "H02",
+    "scope": "HOST_RUNTIME",
+    "description": "Filesystem and egress negative tests"
+  },
+  {
+    "id": "H03",
+    "scope": "HOST_RUNTIME",
+    "description": "Two isolated worktrees"
+  },
+  {
+    "id": "H04",
+    "scope": "HOST_RUNTIME",
+    "description": "Restore DB, assets and key recovery"
+  },
+  {
+    "id": "H05",
+    "scope": "HOST_RUNTIME",
+    "description": "Billing and quota cut-off"
+  },
+  {
+    "id": "H06",
+    "scope": "HOST_RUNTIME",
+    "description": "Tool/skill permission denials"
+  },
+  {
+    "id": "H07",
+    "scope": "HOST_RUNTIME",
+    "description": "Native review and human escalation"
+  },
+  {
+    "id": "H08",
+    "scope": "HOST_RUNTIME",
+    "description": "End-to-end workflow without wake loops"
+  },
+  {
+    "id": "E-director",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-product",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-research",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-design",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-sol",
+    "effort": "high",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-architecture-review",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-engineer-a",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-engineer-b",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-qa",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-growth",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-sol",
+    "effort": "high",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-customer-ops",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-finance-ops",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  },
+  {
+    "id": "E-platform-security",
+    "scope": "LIVE_MODEL",
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "description": "Bounded role task, actual run ID, exact model/effort, evidence and human-reviewed result"
+  }
+]

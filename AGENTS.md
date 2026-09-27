@@ -227,3 +227,7 @@ A change is done when all are true:
 ## Design system
 
 `DESIGN.md` at the repo root is the source of truth for UI design decisions. The token-only rule applies to all `ui/` changes: every color, spacing, radius, type, shadow, and motion value in `ui/src/components/**` and `ui/src/pages/**` comes from the token layer in `ui/src/index.css` — no hex, raw px, arbitrary Tailwind bracket values, or raw `font-size`/`fontSize` declarations in components, outside the documented allowlist in `ui/src/index.css`. Run `pnpm check:token-gates` (`scripts/check-token-gates.mjs`) before committing UI changes — it fails on any violation not covered by that allowlist.
+
+## Fork-specific company work
+
+For `company/`, `scripts/company/`, `tests/company/` or evidence-first catalog changes, read [company/AGENTS.md](company/AGENTS.md). It defines canonical inputs, generated outputs, tests and public-data boundaries. Preserve the upstream contracts above.

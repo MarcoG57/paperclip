@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "caseId": "H01",
+  "status": "NOT_RUN",
+  "scope": "HOST_RUNTIME",
+  "sourceCommit": null,
+  "subjectHash": null,
+  "startedAt": null,
+  "finishedAt": null,
+  "command": [],
+  "exitCode": null,
+  "artifacts": [],
+  "modelBinding": null,
+  "reason": "No authorized deployment host has been tested."
+}

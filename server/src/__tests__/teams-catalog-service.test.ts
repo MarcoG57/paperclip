@@ -59,6 +59,38 @@ function agentWithCatalogTeam(originHash: string | null, extra: Record<string, u
 }
 
 describe("teamsCatalogService", () => {
+  it("pauses catalog automations by default and honors an explicit operator opt-out", async () => {
+    const svc = teamsCatalogService({} as any);
+    await svc.installCatalogTeam("company-1", "product-engineering");
+    expect(mockCompanyPortabilityService.importBundle.mock.calls.at(-1)?.[2])
+      .toMatchObject({ pauseAutomations: true });
+    await svc.installCatalogTeam("company-1", "product-engineering", { pauseAutomations: false });
+    expect(mockCompanyPortabilityService.importBundle.mock.calls.at(-1)?.[2])
+      .toMatchObject({ pauseAutomations: false });
+  });
+
+  it("rejects a stale reviewed catalog hash before importing resources or skills", async () => {
+    const svc = teamsCatalogService({} as any);
+    await expect(svc.installCatalogTeam("company-1", "product-engineering", {
+      expectedContentHash: `sha256:${"0".repeat(64)}`,
+    })).rejects.toThrow("Catalog content changed after preview");
+    expect(mockCompanyPortabilityService.importBundle).not.toHaveBeenCalled();
+    expect(mockCompanySkillService.installFromCatalog).not.toHaveBeenCalled();
+  });
+
+  it("preserves the package-declared Codex adapter and exact model effort", async () => {
+    const svc = teamsCatalogService({} as any);
+    const prepared = await svc.prepareCatalogTeamSource("company-1", "evidence-first-company");
+    await svc.installCatalogTeam("company-1", "evidence-first-company", {
+      expectedContentHash: prepared.team.contentHash,
+    });
+    const input = mockCompanyPortabilityService.importBundle.mock.calls.at(-1)?.[0];
+    expect(input.adapterOverrides["engineer-a"].adapterType).toBe("codex_local");
+    expect(input.source.files[".paperclip.yaml"]).toContain('"gpt-6-luna"');
+    expect(input.source.files[".paperclip.yaml"]).toContain('"max"');
+    expect(mockCompanyPortabilityService.importBundle.mock.calls.at(-1)?.[2]).toMatchObject({ pauseAutomations: true });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockAgentService.getById.mockResolvedValue({
@@ -366,7 +398,7 @@ describe("teamsCatalogService", () => {
         secretValues: { "agent:ceo:OPENAI_API_KEY": "sk-imported" },
       }),
       null,
-      { mode: "agent_safe", sourceCompanyId: "company-1" },
+      { mode: "agent_safe", sourceCompanyId: "company-1", pauseAutomations: true },
     );
   });
 
