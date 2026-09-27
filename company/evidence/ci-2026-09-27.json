@@ -1,0 +1,18 @@
+{
+  "scope": "FOCUSED_FORK_TESTS_NOT_PRODUCTION",
+  "sourceCommit": "f2c5c87ccbb72beca5968b82760017bd9050709c",
+  "workflowRunId": 36346188258,
+  "workflowUrl": "https://github.com/MarcoG57/paperclip/actions/runs/36346188258",
+  "conclusion": "success",
+  "jobs": {
+    "authoring-and-tools": {"id": 108695685351, "conclusion": "success"},
+    "native-integration": {"id": 108695685287, "conclusion": "success"}
+  },
+  "tests": {"nodeTools": 71, "pythonTools": 18, "nativeCatalog": 12, "targetedNativeIntegration": 90},
+  "typecheck": ["@paperclipai/shared", "@paperclipai/teams-catalog", "@paperclipai/adapter-codex-local", "@paperclipai/server", "paperclipai"],
+  "runtimeModelCalls": 0,
+  "ownerInstanceInstalled": false,
+  "ownerHostSandboxTested": false,
+  "fullMonorepoTestsAndBuild": "NOT_RUN",
+  "limitations": ["The workflow URL is the execution evidence; this record is not a signature.", "Temporary PostgreSQL import does not prove owner-host sandboxing or model bindings.", "The operator API client is covered by fixtures, not a complete authenticated host deployment."]
+}
