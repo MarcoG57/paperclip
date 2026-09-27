@@ -145,6 +145,9 @@ export const catalogTeamPreviewSchema = z.object({
 }).strict();
 
 export const catalogTeamInstallSchema = catalogTeamPreviewSchema.extend({
+  // Installation is not authorization to start workers or recurring jobs.
+  pauseAutomations: z.boolean().optional().default(true),
+  expectedContentHash: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
   adapterOverrides: z.record(z.string().min(1), portabilityAdapterOverrideSchema).optional(),
   secretValues: z.record(z.string().min(1), z.string()).optional(),
 }).strict();

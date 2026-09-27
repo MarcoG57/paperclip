@@ -51,7 +51,7 @@ export function buildCodexExecArgs(
   const fastModeApplied = fastModeRequested && isCodexLocalFastModeSupported(model);
   const extraArgs = readExtraArgs(record);
   // Explicit CLI modes/profiles remain deliberate overrides. An omitted
-  // setting uses the same full-auto default as agent creation and onboarding.
+  // setting uses the same sandbox-preserving default as agent creation and onboarding.
   const explicitSandbox = extraArgs.some((arg) =>
     /^(--sandbox(?:=|$)|-s|--profile(?:=|$)|-p|--full-auto$|--yolo$|--dangerously-bypass-approvals-and-sandbox$)/.test(arg)
     || /^(?:(?:--config=|-c=?)\s*)?(?:sandbox_mode|profile)\s*=/.test(arg),

@@ -151,6 +151,10 @@ export interface CatalogTeamImportOptions {
 }
 
 export interface CatalogTeamInstallOptions extends CatalogTeamImportOptions {
+  /** Defaults to true; resuming imported work is a separate operator action. */
+  pauseAutomations?: boolean;
+  /** Reject an install if the catalog changed since the reviewed preview. */
+  expectedContentHash?: string;
   adapterOverrides?: Record<string, CompanyPortabilityAdapterOverride>;
   secretValues?: Record<string, string>;
 }

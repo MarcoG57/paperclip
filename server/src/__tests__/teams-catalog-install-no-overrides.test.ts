@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, createDb } from "@paperclipai/db";
+import { agents, companies, createDb, projects, issues } from "@paperclipai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -12,6 +12,9 @@ import {
 import { teamsCatalogService } from "../services/teams-catalog.js";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
+if (!embeddedPostgresSupport.supported && process.env.PAPERCLIP_REQUIRE_EMBEDDED_TESTS === "1") {
+  throw new Error(`Embedded PostgreSQL is required for this CI job: ${embeddedPostgresSupport.reason}`);
+}
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe.sequential : describe.skip;
 
 if (!embeddedPostgresSupport.supported) {
@@ -137,4 +140,50 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
       .map((row) => row.adapterType);
     expect(otherAdapters).toEqual(["claude_local", "claude_local"]);
   });
+  it("imports the evidence-first company through real persistence without starting agents", async () => {
+    const companyId = await seedEmptyCompany();
+    await db.update(companies).set({ status: "paused" }).where(eq(companies.id, companyId));
+    const svc = teamsCatalogService(db);
+    const prepared = await svc.prepareCatalogTeamSource(companyId, "evidence-first-company");
+    const preview = await svc.previewCatalogTeamImport(companyId, "evidence-first-company", {
+      include: { agents: true, projects: true, issues: true, skills: false },
+    });
+    expect(preview.errors).toEqual([]);
+    await svc.installCatalogTeam(companyId, "evidence-first-company", {
+      expectedContentHash: prepared.team.contentHash,
+      include: { agents: true, projects: true, issues: true, skills: false },
+    });
+    const importedAgents = await db.select().from(agents).where(eq(agents.companyId, companyId));
+    const importedProjects = await db.select().from(projects).where(eq(projects.companyId, companyId));
+    const importedIssues = await db.select().from(issues).where(eq(issues.companyId, companyId));
+    expect(importedAgents).toHaveLength(12);
+    expect(importedProjects).toHaveLength(5);
+    expect(importedIssues).toHaveLength(7);
+    expect(importedAgents.reduce((total, agent) => total + agent.budgetMonthlyCents, 0)).toBe(10000);
+    for (const agent of importedAgents) {
+      expect(agent.status).toBe("paused");
+      expect(agent.adapterType).toBe("codex_local");
+      expect(agent.adapterConfig).toMatchObject({
+        engine: "cli", dangerouslyBypassApprovalsAndSandbox: false,
+        filesystemScope: "workspace", networkScope: "allowlist", fastMode: false,
+      });
+      expect(agent.runtimeConfig).toMatchObject({ heartbeat: { enabled: false, wakeOnDemand: false, maxConcurrentRuns: 1 } });
+      expect(agent.permissions).toMatchObject({ canCreateAgents: false, canAssignTasks: false, canCreateSkills: false });
+      const config = agent.adapterConfig as Record<string, unknown>;
+      expect(["gpt-6-astra", "gpt-6-luna", "gpt-6-sol"]).toContain(config.model);
+      if (config.model === "gpt-6-astra") expect(config.modelReasoningEffort).toBe("medium");
+      if (config.model === "gpt-6-sol") expect(config.modelReasoningEffort).toBe("high");
+      if (config.model === "gpt-6-luna") expect(["medium", "max"]).toContain(config.modelReasoningEffort);
+    }
+    for (const issue of importedIssues) {
+      expect(issue.status).toBe("backlog");
+      expect(issue.assigneeAgentId).toBeNull();
+      expect(issue.assigneeUserId).toBeNull();
+    }
+    expect(importedProjects.every((project) => project.status === "backlog")).toBe(true);
+    // Native catalog import does not authorize provider usage or resume the company.
+    const company = (await db.select().from(companies).where(eq(companies.id, companyId)))[0];
+    expect(company.status).toBe("paused");
+  }, 60_000);
+
 });

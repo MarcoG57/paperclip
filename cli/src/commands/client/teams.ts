@@ -43,6 +43,8 @@ interface TeamPreviewOptions extends BaseClientOptions {
 }
 
 interface TeamInstallOptions extends TeamPreviewOptions {
+  pauseAutomations?: boolean;
+  expectedContentHash?: string;
   requestApprovalOnForbidden?: boolean;
   approvalIssueId?: string;
   secretValue?: string[];
@@ -200,7 +202,9 @@ export function registerTeamCommands(program: Command): void {
   addCommonClientOptions(
     teams
       .command("install")
-      .description("Install a catalog team into a company")
+      .description("Install a catalog team with automations paused by default")
+      .option("--no-pause-automations", "Explicitly retain legacy immediate activation; review risks before use")
+      .option("--expected-content-hash <hash>", "Require the sha256 content hash from the reviewed preview")
       .argument("<catalogRef>", "Catalog team ID, key, or unique slug")
       .option("--target-manager-agent-id <id>", "Existing agent ID that catalog root agents should report to")
       .option("--target-manager-slug <slug>", "Portable manager slug that catalog root agents should report to")
@@ -366,6 +370,8 @@ function buildTeamInstallOptions(opts: TeamInstallOptions): CatalogTeamInstallOp
     ...buildTeamOptions(opts),
     adapterOverrides: parseAdapterOverrides(opts.adapterOverride),
     secretValues: parseSecretValues(opts.secretValue),
+    pauseAutomations: opts.pauseAutomations !== false,
+    expectedContentHash: emptyStringToUndefined(opts.expectedContentHash),
   });
 }
 

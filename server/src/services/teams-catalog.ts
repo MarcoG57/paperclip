@@ -61,6 +61,8 @@ export interface CatalogTeamImportOptions {
   selectedFiles?: string[];
   adapterOverrides?: CompanyPortabilityImport["adapterOverrides"];
   secretValues?: CompanyPortabilityImport["secretValues"];
+  pauseAutomations?: boolean;
+  expectedContentHash?: string;
   sourcePolicy?: CatalogTeamSourcePolicy;
   actor?: CatalogTeamActorContext | null;
 }
@@ -692,8 +694,9 @@ function defaultSafeCatalogAdapterType() {
  * `parsePortableAgentFrontmatter` defaults them to `process` — which the
  * `agent_safe` importer rejects (see `IMPORT_FORBIDDEN_ADAPTER_TYPES` in
  * `company-portability`). Inject a safe per-agent adapter default for every
- * catalog agent the caller did not explicitly override so default-trust teams
- * install without manual adapter flags. Explicit caller overrides win and are
+ * catalog agent without a declared adapter so default-trust teams install
+ * without manual flags. Package-declared types remain intact; their configs
+ * are retained by the portability importer. Explicit caller overrides win and are
  * left untouched (both `adapterType` and `adapterConfig`). This is scoped to the
  * catalog install path; the generic portability fallback is unchanged.
  */
@@ -701,11 +704,22 @@ function withSafeCatalogAdapterDefaults(
   agentSlugs: string[],
   callerOverrides: CompanyPortabilityImport["adapterOverrides"],
   defaultAdapterType: string,
+  sourceFiles: Record<string, CompanyPortabilityFileEntry> = {},
 ): Record<string, CompanyPortabilityAdapterOverride> {
   const merged: Record<string, CompanyPortabilityAdapterOverride> = { ...(callerOverrides ?? {}) };
+  const extensionText = sourceFiles[".paperclip.yaml"];
+  const extension = typeof extensionText === "string" ? parseYamlDocument(extensionText) : {};
+  const declaredAgents = isPlainRecord(extension.agents) ? extension.agents : {};
   for (const slug of agentSlugs) {
     if (merged[slug]) continue;
-    merged[slug] = { adapterType: defaultAdapterType };
+    const agent = isPlainRecord(declaredAgents[slug]) ? declaredAgents[slug] : {};
+    const adapter = isPlainRecord(agent.adapter) ? agent.adapter : {};
+    // Preserve an explicit package binding. The portability service validates
+    // known/safe adapter types; never hide an invalid binding with a fallback.
+    if (Object.hasOwn(adapter, "type") && !readNonEmptyString(adapter.type)) {
+      throw unprocessable(`Catalog agent ${slug} declares an invalid adapter type.`);
+    }
+    merged[slug] = { adapterType: readNonEmptyString(adapter.type) ?? defaultAdapterType };
   }
   return merged;
 }
@@ -909,6 +923,10 @@ export function teamsCatalogService(db: Db) {
       throw unprocessable(`Catalog team source preparation failed: ${prepared.errors.join("; ")}`);
     }
 
+    if (options.expectedContentHash && options.expectedContentHash !== prepared.team.contentHash) {
+      throw conflict("Catalog content changed after preview. Review the current team before installing.");
+    }
+
     const defaultAdapterType = defaultSafeCatalogAdapterType();
     const importInput: CompanyPortabilityImport = {
       ...buildPortabilityInput(companyId, prepared.source, options),
@@ -916,6 +934,7 @@ export function teamsCatalogService(db: Db) {
         prepared.team.agentSlugs,
         options.adapterOverrides,
         defaultAdapterType,
+        prepared.source.files,
       ),
       secretValues: options.secretValues,
     };
@@ -926,9 +945,13 @@ export function teamsCatalogService(db: Db) {
     if (importPreview.errors.length > 0) {
       throw unprocessable(`Catalog team import preview has errors: ${importPreview.errors.join("; ")}`);
     }
-    const defaultedAdapterSlugs = prepared.team.agentSlugs.filter(
-      (slug) => !options.adapterOverrides?.[slug],
-    );
+    const extension = parseYamlDocument(String(prepared.source.files[".paperclip.yaml"] ?? ""));
+    const declaredAgents = isPlainRecord(extension.agents) ? extension.agents : {};
+    const defaultedAdapterSlugs = prepared.team.agentSlugs.filter((slug) => {
+      const agent = isPlainRecord(declaredAgents[slug]) ? declaredAgents[slug] : {};
+      const adapter = isPlainRecord(agent.adapter) ? agent.adapter : {};
+      return !options.adapterOverrides?.[slug] && !readNonEmptyString(adapter.type);
+    });
     const warnings = [
       ...prepared.warnings,
       ...importPreview.warnings,
@@ -944,6 +967,7 @@ export function teamsCatalogService(db: Db) {
       {
         mode: "agent_safe",
         sourceCompanyId: companyId,
+        pauseAutomations: options.pauseAutomations !== false,
       },
     );
     warnings.push(...await prepareSkillInstalls(companyId, prepared));

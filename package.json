@@ -89,7 +89,9 @@
     "connections:ingest-app-definitions": "node scripts/ingest-app-definitions.mjs",
     "test:lifecycle-baseline": "node tests/lifecycle-baseline/run.mjs",
     "test:lifecycle-baseline:support": "node --test tests/lifecycle-baseline/report.test.mjs",
-    "test:lifecycle-baseline:typecheck": "tsc -p tests/lifecycle-baseline/tsconfig.json"
+    "test:lifecycle-baseline:typecheck": "tsc -p tests/lifecycle-baseline/tsconfig.json",
+    "company:check": "node scripts/company/generate.mjs --check && node --test tests/company/*.test.mjs && python3 -m unittest discover -s tests/company -p \"test_*.py\" -v",
+    "company:generate": "node scripts/company/generate.mjs && pnpm --filter @paperclipai/teams-catalog build:manifest"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
