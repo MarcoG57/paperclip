@@ -99,7 +99,7 @@ jobs:
       PAPERCLIP_REQUIRE_EMBEDDED_TESTS: '1'
       NODE_OPTIONS: '--max-old-space-size=6144'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ea73d27597364c9af683
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ needs.publish-reviewed-source.outputs.commit }}
           persist-credentials: false
