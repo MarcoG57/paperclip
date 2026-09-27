@@ -1,0 +1,129 @@
+name: Apply reviewed company patch
+on:
+  push:
+    branches: [work/evidence-first-company]
+    paths: ['.company-bootstrap/part-3.txt']
+permissions:
+  contents: read
+concurrency:
+  group: company-reviewed-patch
+  cancel-in-progress: false
+jobs:
+  publish-reviewed-source:
+    if: github.repository == 'MarcoG57/paperclip' && github.ref == 'refs/heads/work/evidence-first-company'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Verify reviewed patch and allowed paths
+        shell: python
+        run: |
+          import base64, hashlib, lzma, os, pathlib, subprocess
+          encoded = ''.join(pathlib.Path(f'.company-bootstrap/part-{i}.txt').read_text().strip() for i in range(4))
+          patch = lzma.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == '7aaae80039dee4c18de306ce211eb7361276987cbdd3f61e4e73f50f51817702'
+          allowed = ('company/', 'scripts/company/', 'tests/company/', 'packages/teams-catalog/', 'packages/adapters/codex-local/', 'packages/shared/src/types/teams-catalog.ts', 'packages/shared/src/validators/teams-catalog.ts', 'server/src/services/teams-catalog.ts', 'server/src/__tests__/teams-catalog-', 'cli/src/commands/client/teams.ts', 'doc/plans/2026-09-27-evidence-first-company.md')
+          exact = {'README.md', 'AGENTS.md', '.gitignore', 'package.json'}
+          for line in patch.decode().splitlines():
+              if line.startswith('+++ b/') or line.startswith('--- a/'):
+                  name = line[6:]
+                  assert '..' not in pathlib.PurePosixPath(name).parts
+                  assert name in exact or name.startswith(allowed), name
+          target = pathlib.Path(os.environ['RUNNER_TEMP']) / 'reviewed.patch'
+          target.write_bytes(patch)
+          subprocess.run(['git', 'merge-base', '--is-ancestor', '374a81ff21cf049c591423caf4b70f0aa35e82b2', 'HEAD'], check=True)
+          subprocess.run(['git', 'apply', '--check', str(target)], check=True)
+          subprocess.run(['git', 'apply', str(target)], check=True)
+      - name: Generate native catalog from reviewed authoring sources
+        shell: bash
+        run: |
+          node scripts/company/generate.mjs
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { stripTypeScriptTypes } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          const root=process.cwd();
+          const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'native-catalog-'));
+          try {
+            for(const name of ['frontmatter','catalog-builder']) {
+              const source=await fs.readFile(`${root}/packages/teams-catalog/src/${name}.ts`,'utf8');
+              await fs.writeFile(`${tmp}/${name}.mjs`,stripTypeScriptTypes(source).replaceAll('./frontmatter.js','./frontmatter.mjs'));
+            }
+            const {writeCatalogManifest}=await import(pathToFileURL(`${tmp}/catalog-builder.mjs`));
+            const result=await writeCatalogManifest(`${root}/packages/teams-catalog`);
+            if(result.errors.length)throw new Error(result.errors.join('\n'));
+          } finally { await fs.rm(tmp,{recursive:true,force:true}); }
+          JS
+      - name: Format only the new JavaScript utilities
+        run: npx --yes prettier@3.6.2 --write 'scripts/company/*.mjs' 'tests/company/*.mjs'
+      - name: Commit reviewed source without altering other branches
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -u
+          git add company scripts/company tests/company packages/teams-catalog/catalog/optional/company-defaults packages/teams-catalog/src/evidence-first.test.ts doc/plans/2026-09-27-evidence-first-company.md
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: integrate evidence-first company with native catalog and guarded operations' -m 'Preserve explicit adapters; pause catalog imports; bind preview content hash. Keep Codex sandbox by default. Add optional 12-role native company, deterministic authoring, bounded Linux process supervision, guarded operator client and evidence/ledger tools. No models, live instance, funding, or deployment are activated.'
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Push only the reviewed work branch with fast-forward protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/work/evidence-first-company
+  verify-native:
+    needs: publish-reviewed-source
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PAPERCLIP_REQUIRE_EMBEDDED_TESTS: '1'
+      NODE_OPTIONS: '--max-old-space-size=6144'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ea73d27597364c9af683
+        with:
+          ref: ${{ needs.publish-reviewed-source.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Dependency-free tests
+        run: |
+          node scripts/company/generate.mjs --check
+          node --test tests/company/*.test.mjs
+          python3 -m unittest discover -s tests/company -p 'test_*.py' -v
+      - name: Install locked workspace dependencies
+        run: |
+          npm install --global pnpm@9.15.4 --ignore-scripts
+          pnpm install --frozen-lockfile
+      - name: Native catalog generation and tests
+        run: |
+          pnpm --filter @paperclipai/teams-catalog build:manifest
+          git diff --exit-code -- packages/teams-catalog/generated/catalog.json
+          pnpm --filter @paperclipai/teams-catalog validate
+          pnpm --filter @paperclipai/teams-catalog test
+      - name: Native adapter and import regression tests
+        run: |
+          pnpm exec vitest run packages/adapters/codex-local/src/index.test.ts packages/adapters/codex-local/src/server/codex-args.test.ts server/src/__tests__/teams-catalog-service.test.ts server/src/__tests__/teams-catalog-install-no-overrides.test.ts server/src/__tests__/teams-catalog-routes.test.ts ui/src/lib/new-agent-runtime-config.test.ts --maxWorkers=1
+      - name: Typecheck directly changed packages
+        run: pnpm --filter @paperclipai/shared --filter @paperclipai/teams-catalog --filter @paperclipai/adapter-codex-local typecheck
