@@ -181,6 +181,8 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
       expect(issue.assigneeUserId).toBeNull();
     }
     expect(importedProjects.every((project) => project.status === "backlog")).toBe(true);
+    // Host execution policies are applied separately by the operator, not safe import.
+    expect(importedProjects.every((project) => project.executionWorkspacePolicy === null)).toBe(true);
     // Native catalog import does not authorize provider usage or resume the company.
     const company = (await db.select().from(companies).where(eq(companies.id, companyId)))[0];
     expect(company.status).toBe("paused");

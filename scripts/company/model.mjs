@@ -273,3 +273,14 @@ export function reviewPolicy(roleSlug, preset, ids, responsibleUserId) {
   });
   return { mode: "normal", commentRequired: true, maxReviewRounds: 2, stages };
 }
+
+/** Host execution settings require operator approval outside safe catalog import. */
+export function workspacePolicyFor(project) {
+  return {
+    enabled: true,
+    sharedWorkspaceConcurrency: "serialize",
+    defaultMode: project.coding ? "isolated_workspace" : "shared_workspace",
+    allowIssueOverride: false,
+    ...(project.coding ? { workspaceStrategy: { type: "git_worktree" } } : {}),
+  };
+}

@@ -9,6 +9,7 @@ import {
   allocateBudgets,
   runtimeFor,
   permissionsFor,
+  workspacePolicyFor,
   canonical,
   digest,
   exactKeys,
@@ -117,6 +118,11 @@ export async function makePlan(bindings, root = ROOT) {
         allowLocalPathSources: false,
       },
     },
+    projectPolicies: preset.projects.map((project) => ({
+      slug: project.slug,
+      name: project.name,
+      executionWorkspacePolicy: workspacePolicyFor(project),
+    })),
     expectedRoles: preset.roles.map((r) => ({
       slug: r.slug,
       model: r.model,
@@ -412,6 +418,45 @@ export async function apply(plan, approvalHash, request, { root = ROOT } = {}) {
     installed.team?.contentHash === plan.contentHash,
     "INSTALLED_HASH_MISMATCH",
   );
+
+  // Keep agent_safe unchanged. These destinations and policies are
+  // separately approved through planHash, after the safe catalog import.
+  const importedProjects = list(
+    await request("GET", `${basePath(plan)}/projects`),
+    "PROJECTS",
+  );
+  invariant(
+    importedProjects.length === plan.projectPolicies.length,
+    "PROJECT_POLICY_TARGET_COUNT",
+  );
+  const targets = plan.projectPolicies.map((policy) => {
+    const matches = importedProjects.filter(
+      (project) => project.name === policy.name,
+    );
+    invariant(matches.length === 1, "PROJECT_POLICY_TARGET_AMBIGUOUS");
+    const target = matches[0];
+    invariant(
+      target.companyId === plan.bindings.companyId &&
+        typeof target.id === "string" &&
+        /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(target.id),
+      "PROJECT_POLICY_TARGET_INVALID",
+    );
+    invariant(target.status === "backlog", "PROJECT_POLICY_TARGET_NOT_BACKLOG");
+    return {
+      id: target.id,
+      executionWorkspacePolicy: policy.executionWorkspacePolicy,
+    };
+  });
+  for (const target of targets) {
+    const current = await request("GET", basePath(plan));
+    invariant(
+      current.id === plan.bindings.companyId && current.status === "paused",
+      "COMPANY_ACTIVATED_DURING_INSTALL",
+    );
+    await request("PATCH", `/api/projects/${target.id}`, {
+      executionWorkspacePolicy: target.executionWorkspacePolicy,
+    });
+  }
   const report = await inspect(plan, request, { root });
   invariant(report.configured, "INSTALL_READBACK_FAILED_KEEP_PAUSED");
   return { ...report, changed: true };

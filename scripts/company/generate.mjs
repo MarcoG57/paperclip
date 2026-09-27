@@ -99,15 +99,6 @@ export function compileTeam({ preset, common, roles }) {
     projects[project.slug] = {
       leadAgentSlug: project.lead,
       status: "backlog",
-      executionWorkspacePolicy: {
-        enabled: true,
-        sharedWorkspaceConcurrency: "serialize",
-        defaultMode: project.coding ? "isolated_workspace" : "shared_workspace",
-        allowIssueOverride: false,
-        ...(project.coding
-          ? { workspaceStrategy: { type: "git_worktree" } }
-          : {}),
-      },
     };
   }
   for (const task of topological(preset.tasks, (t) => t.blockedBy)) {

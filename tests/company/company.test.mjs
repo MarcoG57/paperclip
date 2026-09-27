@@ -326,6 +326,8 @@ function nativeFixture({ installed = false, drift = false } = {}) {
       ...(p.coding ? { workspaceStrategy: { type: "git_worktree" } } : {}),
     },
   }));
+  if (!installed)
+    for (const project of projects) project.executionWorkspacePolicy = null;
   const issues = preset.tasks.map((t) => ({
     id: taskIds[t.slug],
     companyId: bindings.companyId,
@@ -362,6 +364,15 @@ function nativeFixture({ installed = false, drift = false } = {}) {
     if (pathname.endsWith("/issues")) return installed ? issues : [];
     if (pathname.startsWith("/api/issues/"))
       return issues.find((i) => pathname.endsWith(i.id));
+    if (pathname.startsWith("/api/projects/") && method === "PATCH") {
+      const project = projects.find(
+        (p) => pathname === `/api/projects/${p.id}`,
+      );
+      assert.ok(project);
+      assert.equal(company.status, "paused");
+      Object.assign(project, structuredClone(body));
+      return structuredClone(project);
+    }
     const role = preset.roles.find((r) => pathname.includes(roleIds[r.slug]));
     if (role && pathname.endsWith("/configuration"))
       return {
@@ -393,14 +404,14 @@ test("native API fixture exercises paused installation and full readback without
   assert.equal(report.changed, true);
   assert.equal(report.runtimeReady, false);
   const mutations = calls.filter((c) => c.method !== "GET");
-  assert.equal(mutations.length, 4);
+  assert.equal(mutations.length, 9);
   assert.equal(
     calls.some((c) => /\/resume|\/wakeup/.test(c.url)),
     false,
   );
   const again = await apply(plan, plan.planHash, request);
   assert.equal(again.changed, false);
-  assert.equal(calls.filter((c) => c.method !== "GET").length, 4);
+  assert.equal(calls.filter((c) => c.method !== "GET").length, 9);
 });
 test("readback detects effort drift; existing instances are never silently repaired", async () => {
   const { request, calls } = nativeFixture({ installed: true, drift: true });
@@ -414,4 +425,82 @@ test("readback detects effort drift; existing instances are never silently repai
     calls.every((c) => c.method === "GET"),
     true,
   );
+});
+
+test("safe catalog excludes execution policies and approval plan binds them separately", () => {
+  assert.equal(
+    compileTeam(sources)[".paperclip.yaml"].includes(
+      "executionWorkspacePolicy",
+    ),
+    false,
+  );
+  assert.equal(plan.projectPolicies.length, 5);
+  assert.equal(
+    plan.projectPolicies.filter(
+      (p) => p.executionWorkspacePolicy.defaultMode === "isolated_workspace",
+    ).length,
+    2,
+  );
+});
+test("operator refuses foreign project destinations before policy writes", async () => {
+  const fixture = nativeFixture();
+  let imported = false;
+  const request = async (method, url, body) => {
+    const response = await fixture.request(method, url, body);
+    if (url.includes("/install?")) imported = true;
+    if (imported && url.endsWith("/projects"))
+      return response.map((p) => ({ ...p, companyId: "other-company" }));
+    return response;
+  };
+  await assert.rejects(
+    apply(plan, plan.planHash, request),
+    /PROJECT_POLICY_TARGET_INVALID/,
+  );
+  assert.equal(
+    fixture.calls.some(
+      (c) => c.method === "PATCH" && c.url.startsWith("/api/projects/"),
+    ),
+    false,
+  );
+});
+test("operator checks paused company before each workspace policy", async () => {
+  const fixture = nativeFixture();
+  let imported = false;
+  const request = async (method, url, body) => {
+    const response = await fixture.request(method, url, body);
+    if (url.includes("/install?")) imported = true;
+    if (
+      imported &&
+      method === "GET" &&
+      url === `/api/companies/${bindings.companyId}`
+    )
+      return { ...response, status: "active" };
+    return response;
+  };
+  await assert.rejects(
+    apply(plan, plan.planHash, request),
+    /COMPANY_ACTIVATED_DURING_INSTALL/,
+  );
+  assert.equal(
+    fixture.calls.some(
+      (c) => c.method === "PATCH" && c.url.startsWith("/api/projects/"),
+    ),
+    false,
+  );
+});
+test("operator does not retry a failed policy write or report configured", async () => {
+  const fixture = nativeFixture();
+  let writes = 0;
+  const request = async (method, url, body) => {
+    if (method === "PATCH" && url.startsWith("/api/projects/")) {
+      writes++;
+      throw new Error("WRITE_OUTCOME_UNKNOWN");
+    }
+    return fixture.request(method, url, body);
+  };
+  await assert.rejects(
+    apply(plan, plan.planHash, request),
+    /WRITE_OUTCOME_UNKNOWN/,
+  );
+  assert.equal(writes, 1);
 });

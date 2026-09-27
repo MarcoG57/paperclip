@@ -47,3 +47,14 @@ El endpoint de configuración redacciona incluso un `OPENAI_API_KEY` vacío. `do
 ## Evolución
 
 Conservar `master`/upstream como referencia y revisar cada actualización contra los tests de este fork. Antes de cambiar catálogo/modelos: regenerar, revisar hash, tomar backup real, aplicar en staging y ejecutar readback. Para deshacer código: revert de los commits del fork. Para deshacer datos: restauración del backup verificado; no hay comando destructivo automático.
+
+## Frontera del importador seguro
+
+El catálogo nativo usa `agent_safe`: no acepta `executionWorkspacePolicy` en los
+assets. El preset no intenta saltarse esa restricción. El plan de operador
+incluye cinco políticas de workspace, las aplica con `PATCH /api/projects/:id`
+después de importar y verifica de nuevo que la empresa esté pausada antes de
+cada operación. Los UUID y la pertenencia a la company se validan antes del
+primer PATCH. `doctor` exige el resultado final; la importación nativa por sí
+sola no configura aislamiento. Un fallo parcial no activa ni reintenta trabajo:
+requiere inspección y reparación humana con la empresa todavía pausada.
