@@ -1,56 +1,87 @@
-name: Evidence-first fork
+name: Evidence-first company
 on:
   push:
-    branches: [work/evidence-first-company]
-  pull_request:
+    branches: [master, work/evidence-first-company]
     paths:
+      - 'company/**'
       - 'scripts/company/**'
       - 'tests/company/**'
-      - 'company/**'
+      - 'packages/teams-catalog/**'
+      - 'packages/adapters/codex-local/**'
+      - 'packages/shared/src/**/teams-catalog.ts'
+      - 'server/src/services/teams-catalog.ts'
+      - 'server/src/__tests__/teams-catalog-*.test.ts'
+      - 'cli/src/commands/client/teams.ts'
       - '.github/workflows/evidence-first.yml'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'company/**'
+      - 'scripts/company/**'
+      - 'tests/company/**'
+      - 'packages/teams-catalog/**'
+      - 'packages/adapters/codex-local/**'
+      - 'packages/shared/src/**/teams-catalog.ts'
+      - 'server/src/services/teams-catalog.ts'
+      - 'server/src/__tests__/teams-catalog-*.test.ts'
+      - 'cli/src/commands/client/teams.ts'
+      - '.github/workflows/evidence-first.yml'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: evidence-first-${{ github.ref }}
+  group: evidence-first-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  inventory-and-unit:
+  authoring-and-tools:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Inventory tracked source (no credentials or model calls)
-        shell: python
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Generated source drift
+        run: node scripts/company/generate.mjs --check
+      - name: Node contracts and adversarial fixtures (no providers)
+        run: node --test tests/company/*.test.mjs
+      - name: Process lifecycle and exact ledger arithmetic
+        run: python3 -m unittest discover -s tests/company -p 'test_*.py' -v
+      - name: Working tree hygiene
         run: |
-          import collections, json, pathlib, subprocess
-          root = pathlib.Path.cwd()
-          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
-          groups = collections.defaultdict(lambda: {'files': 0, 'bytes': 0, 'text_lines': 0})
-          code = {'.ts', '.tsx', '.js', '.mjs', '.py', '.sh', '.sql'}
-          candidates = []
-          for name in filter(None, paths):
-              path = root / name
-              if not path.is_file() or path.is_symlink(): continue
-              group = '/'.join(pathlib.PurePosixPath(name).parts[:2]) if name.startswith('packages/') else name.split('/')[0]
-              entry = groups[group]
-              entry['files'] += 1
-              entry['bytes'] += path.stat().st_size
-              if path.suffix in code:
-                  entry['text_lines'] += len(path.read_text(errors='replace').splitlines())
-              if any(term in name for term in ('team-catalog', 'teams-catalog', 'agentcompany', 'agent-company', 'company-portability', 'codex-args', 'model-config', 'agent-runtime-config', 'wake-queue')):
-                  candidates.append(name)
-          print(json.dumps({'commit': subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(), 'inventory':dict(sorted(groups.items())), 'integration_candidates':candidates}, indent=2))
-      - name: Dependency-free customization tests
-        shell: bash
+          git diff --check
+          git diff --exit-code
+  native-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PAPERCLIP_REQUIRE_EMBEDDED_TESTS: '1'
+      NODE_OPTIONS: '--max-old-space-size=6144'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24.11.0'
+          package-manager-cache: false
+      - name: Install locked workspace (no account or model keys)
         run: |
-          set -euo pipefail
-          if test -f tests/company/company.test.mjs; then
-            node --test tests/company/*.test.mjs
-          else
-            echo 'Baseline inventory only: customization tests not authored yet.'
-          fi
-      - name: Check whitespace
-        run: git diff --check HEAD
+          npm install --global pnpm@9.15.4 --ignore-scripts
+          pnpm install --frozen-lockfile
+          pnpm run preflight:workspace-links
+      - name: Native catalog consistency and tests
+        run: |
+          pnpm --filter @paperclipai/teams-catalog build:manifest
+          git diff --exit-code -- packages/teams-catalog/generated/catalog.json
+          pnpm --filter @paperclipai/teams-catalog validate
+          pnpm --filter @paperclipai/teams-catalog test
+      - name: Adapter, UI defaults, routes and real PostgreSQL import
+        run: |
+          pnpm exec vitest run packages/adapters/codex-local/src/index.test.ts packages/adapters/codex-local/src/server/codex-args.test.ts server/src/__tests__/teams-catalog-service.test.ts server/src/__tests__/teams-catalog-install-no-overrides.test.ts server/src/__tests__/teams-catalog-routes.test.ts ui/src/lib/new-agent-runtime-config.test.ts --maxWorkers=1
+      - name: Typecheck changed packages
+        run: pnpm --filter @paperclipai/shared --filter @paperclipai/teams-catalog --filter @paperclipai/adapter-codex-local --filter @paperclipai/server --filter paperclipai typecheck
