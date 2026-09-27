@@ -74,6 +74,7 @@ jobs:
           npm install --global pnpm@9.15.4 --ignore-scripts
           pnpm install --frozen-lockfile
           pnpm run preflight:workspace-links
+          pnpm --filter @paperclipai/plugin-sdk ensure-build-deps
       - name: Native catalog consistency and tests
         run: |
           pnpm --filter @paperclipai/teams-catalog build:manifest
