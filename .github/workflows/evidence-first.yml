@@ -1,0 +1,56 @@
+name: Evidence-first fork
+on:
+  push:
+    branches: [work/evidence-first-company]
+  pull_request:
+    paths:
+      - 'scripts/company/**'
+      - 'tests/company/**'
+      - 'company/**'
+      - '.github/workflows/evidence-first.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: evidence-first-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  inventory-and-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Inventory tracked source (no credentials or model calls)
+        shell: python
+        run: |
+          import collections, json, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          groups = collections.defaultdict(lambda: {'files': 0, 'bytes': 0, 'text_lines': 0})
+          code = {'.ts', '.tsx', '.js', '.mjs', '.py', '.sh', '.sql'}
+          candidates = []
+          for name in filter(None, paths):
+              path = root / name
+              if not path.is_file() or path.is_symlink(): continue
+              group = '/'.join(pathlib.PurePosixPath(name).parts[:2]) if name.startswith('packages/') else name.split('/')[0]
+              entry = groups[group]
+              entry['files'] += 1
+              entry['bytes'] += path.stat().st_size
+              if path.suffix in code:
+                  entry['text_lines'] += len(path.read_text(errors='replace').splitlines())
+              if any(term in name for term in ('team-catalog', 'teams-catalog', 'agentcompany', 'agent-company', 'company-portability', 'codex-args', 'model-config', 'agent-runtime-config', 'wake-queue')):
+                  candidates.append(name)
+          print(json.dumps({'commit': subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(), 'inventory':dict(sorted(groups.items())), 'integration_candidates':candidates}, indent=2))
+      - name: Dependency-free customization tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f tests/company/company.test.mjs; then
+            node --test tests/company/*.test.mjs
+          else
+            echo 'Baseline inventory only: customization tests not authored yet.'
+          fi
+      - name: Check whitespace
+        run: git diff --check HEAD
